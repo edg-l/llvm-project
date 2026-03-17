@@ -3682,7 +3682,12 @@ DiagnosedSilenceableFailure transform::tileToForallOpImpl(
 
   tilingResult = *maybeTilingResult;
 
-  if (mixedNumThreads.empty() && !tilingResult.loops.empty()) {
+  if (tilingResult.loops.empty()) {
+    return transformOp.emitSilenceableError()
+           << "tiling did not generate any loops";
+  }
+
+  if (mixedNumThreads.empty()) {
     auto generatedForallOp = cast<scf::ForallOp>(tilingResult.loops.front());
     OpBuilder::InsertionGuard g(rewriter);
     rewriter.setInsertionPoint(generatedForallOp);
