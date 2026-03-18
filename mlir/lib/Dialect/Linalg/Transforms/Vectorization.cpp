@@ -1195,7 +1195,7 @@ vectorizeTensorExtract(RewriterBase &rewriter, VectorizationState &state,
         loc, resultType, extractOp.getTensor(), transferReadIdxs,
         /*padding=*/std::nullopt, permutationMap, inBounds);
 
-    Operation *resultOp = transferReadOp;
+    Operation *readOrMaskedReadOp = transferReadOp;
     if (dstRank > 0) {
       // Mask this broadcasting xfer_read here rather than relying on the
       // generic path (the generic path assumes identity masking map, which
@@ -1204,12 +1204,13 @@ vectorizeTensorExtract(RewriterBase &rewriter, VectorizationState &state,
       auto readMaskType = VectorType::get(readMaskShape, rewriter.getI1Type());
       auto allTrue = rewriter.create<vector::ConstantMaskOp>(
           loc, readMaskType, vector::ConstantMaskKind::AllTrue);
-      resultOp =
+      readOrMaskedReadOp =
           mlir::vector::maskOperation(rewriter, transferReadOp, allTrue);
     }
 
     LDBG("Vectorised as scalar broadcast load: " << extractOp << "\n");
-    return VectorizationHookResult{VectorizationHookStatus::NewOp, resultOp};
+    return VectorizationHookResult{VectorizationHookStatus::NewOp,
+                                   readOrMaskedReadOp};
   }
 
   // 2b. Handle contiguous access.
