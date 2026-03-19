@@ -94,7 +94,9 @@ static void specializeForLoopForUnrolling(ForOp op) {
 
   OpBuilder b(op);
   IRMapping map;
-  Value constant = b.create<arith::ConstantIndexOp>(op.getLoc(), minConstant);
+  Value constant = b.create<arith::ConstantOp>(
+      op.getLoc(),
+      IntegerAttr::get(op.getUpperBound().getType(), minConstant));
   Value cond = b.create<arith::CmpIOp>(op.getLoc(), arith::CmpIPredicate::eq,
                                        bound, constant);
   map.map(bound, constant);
@@ -150,6 +152,9 @@ static LogicalResult peelForLoop(RewriterBase &b, ForOp forOp,
                                              ValueRange{forOp.getLowerBound(),
                                                         forOp.getUpperBound(),
                                                         forOp.getStep()});
+  if (splitBound.getType() != forOp.getLowerBound().getType())
+    splitBound = b.createOrFold<arith::IndexCastOp>(
+        loc, forOp.getLowerBound().getType(), splitBound);
 
   // Create ForOp for partial iteration.
   b.setInsertionPointAfter(forOp);
@@ -230,6 +235,9 @@ LogicalResult mlir::scf::peelForLoopFirstIteration(RewriterBase &b, ForOp forOp,
   auto loc = forOp.getLoc();
   Value splitBound = b.createOrFold<AffineApplyOp>(
       loc, ubMap, ValueRange{forOp.getLowerBound(), forOp.getStep()});
+  if (splitBound.getType() != forOp.getUpperBound().getType())
+    splitBound = b.createOrFold<arith::IndexCastOp>(
+        loc, forOp.getUpperBound().getType(), splitBound);
 
   // Peel the first iteration.
   IRMapping map;
