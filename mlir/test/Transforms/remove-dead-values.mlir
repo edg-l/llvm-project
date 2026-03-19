@@ -592,3 +592,37 @@ module @dynamically_unreachable {
     return
   }
 }
+
+// -----
+
+// Test the elimination of function arguments.
+
+// CHECK-LABEL: func private @single_parameter
+// CHECK-SAME: () {
+func.func private @single_parameter(%arg0: index) {
+  return
+}
+
+// CHECK-LABEL: func.func private @mutl_parameter(
+// CHECK-SAME: %[[ARG0:.*]]: index)
+// CHECK: return %[[ARG0]]
+func.func private @mutl_parameter(%arg0: index, %arg1: index, %arg2: index) -> index {
+  return %arg1 : index
+}
+
+// CHECK-LABEL: func private @eliminate_parameter
+// CHECK-SAME: () {
+func.func private @eliminate_parameter(%arg0: index, %arg1: index) {
+  call @single_parameter(%arg0) : (index) -> ()
+  return
+}
+
+// CHECK-LABEL: func @callee
+// CHECK-SAME: (%[[ARG0:.*]]: index, %[[ARG1:.*]]: index, %[[ARG2:.*]]: index)
+func.func @callee(%arg0: index, %arg1: index, %arg2: index) -> index {
+// CHECK: call @eliminate_parameter() : () -> ()
+  call @eliminate_parameter(%arg0, %arg1) : (index, index) -> ()
+// CHECK: call @mutl_parameter(%[[ARG1]]) : (index) -> index
+  %res = call @mutl_parameter(%arg0, %arg1, %arg2) : (index, index, index) -> (index)
+  return %res : index
+}
